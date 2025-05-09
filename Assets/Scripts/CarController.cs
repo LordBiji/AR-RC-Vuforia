@@ -25,16 +25,13 @@ public class CarController : MonoBehaviour
     public float minSteerForSmoke = 15f;
     public float maxEmissionRate = 25f;
     [Range(0, 1)] public float smokeIntensity = 0.5f;
-    public float smokeScaleFactor = 0.04f; // Match your car's scale
-
-    private float[] baseEmissionRates;
-    private ParticleSystem.MainModule[] smokeMainModules;
 
     private FloatingJoystick joystick;
     private Rigidbody rb;
     private float currentSpeed;
     private bool isReversing;
     private float currentSteerAngle;
+    private float[] baseEmissionRates;
 
     private void Awake()
     {
@@ -43,23 +40,11 @@ public class CarController : MonoBehaviour
 
         // Initialize smoke systems
         baseEmissionRates = new float[rearTireSmoke.Length];
-        smokeMainModules = new ParticleSystem.MainModule[rearTireSmoke.Length];
-
         for (int i = 0; i < rearTireSmoke.Length; i++)
         {
             if (rearTireSmoke[i] != null)
             {
-                // Store original emission rate
                 baseEmissionRates[i] = rearTireSmoke[i].emission.rateOverTime.constant;
-
-                // Get and configure the main module
-                smokeMainModules[i] = rearTireSmoke[i].main;
-                smokeMainModules[i].scalingMode = ParticleSystemScalingMode.Local;
-
-                // Apply initial scale
-                smokeMainModules[i].startSizeMultiplier *= smokeScaleFactor;
-                smokeMainModules[i].startSpeedMultiplier *= smokeScaleFactor;
-
                 rearTireSmoke[i].Stop();
             }
         }
@@ -162,14 +147,8 @@ public class CarController : MonoBehaviour
         {
             if (rearTireSmoke[i] == null) continue;
 
-            // Scale emission rate with intensity
             var emission = rearTireSmoke[i].emission;
-            emission.rateOverTime = intensity * maxEmissionRate * smokeScaleFactor;
-
-            // Scale particle properties dynamically
-            var main = smokeMainModules[i];
-            main.startSize = Mathf.Lerp(0.1f * smokeScaleFactor, 0.5f * smokeScaleFactor, intensity);
-            main.startSpeed = Mathf.Lerp(0.5f * smokeScaleFactor, 2f * smokeScaleFactor, intensity);
+            emission.rateOverTime = intensity * maxEmissionRate;
 
             if (shouldEmit)
             {
@@ -184,7 +163,7 @@ public class CarController : MonoBehaviour
         }
     }
 
-        void OnGUI()
+    void OnGUI()
     {
         GUI.Label(new Rect(10, 10, 300, 20), $"Speed: {currentSpeed.ToString("F1")}");
         GUI.Label(new Rect(10, 30, 300, 20), $"Steering: {currentSteerAngle.ToString("F1")}°");
