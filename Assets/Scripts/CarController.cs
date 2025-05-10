@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections; 
 
 public class CarController : MonoBehaviour
 {
@@ -23,15 +24,17 @@ public class CarController : MonoBehaviour
     public ParticleSystem[] rearTireSmoke;
     public float minSpeedForSmoke = 0.8f;
     public float minSteerForSmoke = 15f;
-    public float maxEmissionRate = 25f;
-    [Range(0, 1)] public float smokeIntensity = 0.5f;
+    public float smokeFadeOutTime = 0.5f; // New: Time for smoke to fade out after drifting
+
+    private bool[] isSmokeFadingOut;
+    private float[] smokeFadeTimers;
+
 
     private FloatingJoystick joystick;
     private Rigidbody rb;
     private float currentSpeed;
     private bool isReversing;
     private float currentSteerAngle;
-    private float[] baseEmissionRates;
 
     private void Awake()
     {
@@ -39,13 +42,16 @@ public class CarController : MonoBehaviour
         rb.centerOfMass = new Vector3(0, -0.5f, 0);
 
         // Initialize smoke systems
-        baseEmissionRates = new float[rearTireSmoke.Length];
+        isSmokeFadingOut = new bool[rearTireSmoke.Length];
+        smokeFadeTimers = new float[rearTireSmoke.Length];
+
         for (int i = 0; i < rearTireSmoke.Length; i++)
         {
             if (rearTireSmoke[i] != null)
             {
-                baseEmissionRates[i] = rearTireSmoke[i].emission.rateOverTime.constant;
                 rearTireSmoke[i].Stop();
+                isSmokeFadingOut[i] = false;
+                smokeFadeTimers[i] = 0f;
             }
         }
     }
@@ -139,31 +145,43 @@ public class CarController : MonoBehaviour
         bool shouldEmit = Mathf.Abs(currentSteerAngle) > minSteerForSmoke &&
                          Mathf.Abs(currentSpeed) > minSpeedForSmoke;
 
-        float intensity = Mathf.Clamp01(
-            Mathf.Abs(currentSteerAngle) / maxSteeringAngle * smokeIntensity * 2f
-        );
-
         for (int i = 0; i < rearTireSmoke.Length; i++)
         {
             if (rearTireSmoke[i] == null) continue;
 
-            var emission = rearTireSmoke[i].emission;
-            emission.rateOverTime = intensity * maxEmissionRate;
-
             if (shouldEmit)
             {
+                // Reset fade out if we're drifting again
+                isSmokeFadingOut[i] = false;
+                smokeFadeTimers[i] = 0f;
+
                 if (!rearTireSmoke[i].isPlaying)
                     rearTireSmoke[i].Play();
             }
-            else
+            else if (rearTireSmoke[i].isPlaying)
             {
-                if (rearTireSmoke[i].isPlaying)
+                // Start fade out process
+                if (!isSmokeFadingOut[i])
+                {
+                    isSmokeFadingOut[i] = true;
+                    smokeFadeTimers[i] = smokeFadeOutTime;
+                }
+
+                // Handle fade out
+                if (smokeFadeTimers[i] > 0)
+                {
+                    smokeFadeTimers[i] -= Time.deltaTime;
+                }
+                else
+                {
                     rearTireSmoke[i].Stop();
+                    isSmokeFadingOut[i] = false;
+                }
             }
         }
     }
 
-    void OnGUI()
+        void OnGUI()
     {
         GUI.Label(new Rect(10, 10, 300, 20), $"Speed: {currentSpeed.ToString("F1")}");
         GUI.Label(new Rect(10, 30, 300, 20), $"Steering: {currentSteerAngle.ToString("F1")}°");
